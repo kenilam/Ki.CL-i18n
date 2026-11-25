@@ -1,0 +1,80 @@
+import { throwIfProviderLimitError } from 'server/AI/providerLimitError.js';
+import type { OpenAIChatResponse, TextChatOptions } from 'server/AI/types.js';
+
+const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const PROVIDER = 'groq';
+
+/*
+ * GPT OSS reasons before it answers, and the reasoning counts towards
+ * max_tokens. Without room for it a short answer comes back empty.
+ */
+const REASONING_HEADROOM = 1024;
+
+const isReasoningModel = (model: string) => model.startsWith('openai/gpt-oss');
+
+/*
+ * No default: Groq retires models, and a retired default made every call
+ * fail and retry before moving on. Name one in GROQ_TEXT_MODEL to use Groq.
+ */
+export function resolveGroqTextModel(): string {
+  return process.env.GROQ_TEXT_MODEL?.trim() ?? '';
+}
+
+export function isGroqTextConfigured(): boolean {
+  return Boolean(process.env.GROQ_API_KEY?.trim() && resolveGroqTextModel());
+}
+
+export async function chatGroq(options: TextChatOptions): Promise<string> {
+  const apiKey = process.env.GROQ_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error('GROQ_API_KEY is not configured');
+  }
+
+  const model = resolveGroqTextModel();
+  const reasoning = isReasoningModel(model);
+
+  const response = await fetch(GROQ_CHAT_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      temperature: options.temperature ?? 0.4,
+      max_tokens: (options.maxTokens ?? 120) + (reasoning ? REASONING_HEADROOM : 0),
+      ...(reasoning ? { include_reasoning: false, reasoning_effort: 'low' } : {}),
+      messages: [
+        { role: 'system', content: options.system },
+        { role: 'user', content: options.user },
+      ],
+    }),
+  });
+
+  const payload = (await response.json()) as OpenAIChatResponse;
+
+  if (!response.ok) {
+    const message = payload.error?.message
+      ?? payload.error?.code
+      ?? `Groq HTTP ${response.status}`;
+    throwIfProviderLimitError(message, PROVIDER);
+    throw new Error(message);
+  }
+
+  const text = payload.choices?.[0]?.message?.content?.trim();
+  if (!text) {
+    throw new Error('Groq returned no text');
+  }
+
+  return text.replace(/^["']|["']$/g, '');
+}
+
+export async function generateDescriptionGroq(prompt: string): Promise<string> {
+  return chatGroq({
+    system:
+      'You write concise, accurate natural-history blurbs. Reply with the description only.',
+    user: prompt,
+    maxTokens: 120,
+    temperature: 0.4,
+  });
+}

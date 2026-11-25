@@ -1,0 +1,13 @@
+{
+  "incomplete": "Not fully translated yet.",
+  "incomplete_translating": "Being translated. You can pick it once it’s done.",
+  "label": "Language",
+  "session_failed": "Could not start a session",
+  "session_later": "Try again later.",
+  "session_limited": "Could not start a session right now",
+  "session_rejected": "Could not confirm you are human",
+  "session_retry": "Reload to try again.",
+  "standalone_description": "The language switcher any Ki.CL page can drop in. It lists every language the site is translated into and updates as translations finish.",
+  "standalone_sample": "This sentence is read from the database, in the language you pick.",
+  "standalone_title": "Languages"
+}

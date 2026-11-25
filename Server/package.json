@@ -1,0 +1,30 @@
+{
+  "name": "@ki-cl/i18n-server",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@apollo/server": "^5.5.1",
+    "@as-integrations/express5": "^1.1.2",
+    "@google-cloud/storage": "^7.21.0",
+    "@graphql-tools/schema": "^10.0.38",
+    "@theguild/federation-composition": "^0.27.2",
+    "express": "^5.2.1",
+    "google-auth-library": "^11.3.4",
+    "graphql": "17",
+    "graphql-ws": "^6.2.0",
+    "mongoose": "^9.8.1",
+    "ws": "^8.21.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "26",
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.23.1",
+    "typescript": "7"
+  },
+  "scripts": {
+    "dev": "tsx watch index.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}
