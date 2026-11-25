@@ -26,18 +26,48 @@ steps:
 
   # Sends this repo's English to Ki.CL-i18n before the code that reads it goes live. Dev translates
   # what's new at once and production copies dev's translations; a failure is left to the nightly run.
+  # The registry names the service, and the build's own account signs the call.
   - id: Words
-    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
-    entrypoint: bash
+    name: node:24-slim
+    entrypoint: node
     allowFailure: true
+    env:
+      - LOCALES=$_LOCALES
+      - BUCKET=$_REGISTRY_BUCKET
     args:
-      - -c
+      - --input-type=module
+      - -e
       - |
-        set -eo pipefail
-        python3 -c "import glob, json, os; print(json.dumps({os.path.basename(f)[:-5]: json.load(open(f)) for f in sorted(glob.glob('$_LOCALES/en-US/*.json'))}))" > /workspace/english.json
-        url=$$(gcloud storage cat gs://$_REGISTRY_BUCKET/services/i18n.json | python3 -c "import json, sys; print(json.load(sys.stdin)['url'].removesuffix('/api'))")
-        token=$$(gcloud auth print-identity-token --audiences=ki-cl-subgraphs)
-        curl -sS --fail-with-body --max-time 600 -X POST "$$url/internal/english" -H "X-Serverless-Authorization: Bearer $$token" -H 'Content-Type: application/json' --data-binary @/workspace/english.json
+        import { readdirSync, readFileSync } from 'node:fs';
+
+        const folder = process.env.LOCALES + '/en-US';
+        const english = Object.fromEntries(
+          readdirSync(folder)
+            .filter((name) => name.endsWith('.json'))
+            .sort()
+            .map((name) => [name.slice(0, -5), JSON.parse(readFileSync(folder + '/' + name, 'utf8'))]),
+        );
+
+        const metadata = 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/';
+        const flavor = { 'Metadata-Flavor': 'Google' };
+        const token = await (await fetch(metadata + 'token', { headers: flavor })).json();
+        const record = await (
+          await fetch('https://storage.googleapis.com/storage/v1/b/' + process.env.BUCKET + '/o/services%2Fi18n.json?alt=media', {
+            headers: { Authorization: 'Bearer ' + token.access_token },
+          })
+        ).json();
+        const identity = await (await fetch(metadata + 'identity?audience=ki-cl-subgraphs', { headers: flavor })).text();
+        const service = record.url.endsWith('/api') ? record.url.slice(0, -4) : record.url;
+
+        const response = await fetch(service + '/internal/english', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Serverless-Authorization': 'Bearer ' + identity },
+          body: JSON.stringify(english),
+          signal: AbortSignal.timeout(600000),
+        });
+
+        console.log(response.status, await response.text());
+        process.exitCode = response.ok ? 0 : 1;
 
   - id: Deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
