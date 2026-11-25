@@ -56,7 +56,15 @@ steps:
             headers: { Authorization: 'Bearer ' + token.access_token },
           })
         ).json();
-        const identity = await (await fetch(metadata + 'identity?audience=ki-cl-subgraphs', { headers: flavor })).text();
+        // The metadata server only gives ID tokens to a dedicated build account, so the default one mints its own.
+        const email = await (await fetch(metadata + 'email', { headers: flavor })).text();
+        const { token: identity } = await (
+          await fetch('https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/' + email + ':generateIdToken', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + token.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ audience: 'ki-cl-subgraphs' }),
+          })
+        ).json();
         const service = record.url.endsWith('/api') ? record.url.slice(0, -4) : record.url;
 
         const response = await fetch(service + '/internal/english', {
