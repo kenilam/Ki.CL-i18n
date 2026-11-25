@@ -4,7 +4,7 @@
   "description": "Ki.CL languages: a GraphQL subgraph that owns every translation, and a federated language switcher and i18next backend",
   "type": "module",
   "private": true,
-  "packageManager": "yarn@4.17.1",
+  "packageManager": "yarn@4.19.0",
   "engines": {
     "node": ">=24"
   },
