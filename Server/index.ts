@@ -13,7 +13,8 @@ import './environment.js';
 import { connect } from './database.js';
 import { precompressed } from './precompressed.js';
 import { schema, type Context } from './schema.js';
-import { refresh } from './store.js';
+import { acceptLanguages } from './language.js';
+import { availableAcceptLanguages, localeTags, refresh } from './store.js';
 import { copy, namespacesOf, seed, translate, translatedLocales, translationsFor } from './words.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -99,6 +100,16 @@ async function start() {
     }
 
     response.json({ rows: await translationsFor(asked) });
+  });
+
+  // Other services ask these instead of reading the collections, and cache each answer for a minute.
+  app.get('/internal/locales', async (_request, response) => {
+    response.json({ locales: await localeTags() });
+  });
+
+  // The visitor's header, passed on as it came: the languages to answer in, best first, `en-US` last.
+  app.get('/internal/accept-language', async (request, response) => {
+    response.json({ acceptLanguages: acceptLanguages(request.headers['accept-language'], await availableAcceptLanguages()) });
   });
 
   // Cloud Scheduler calls this every night, after Gemini's free quota resets.

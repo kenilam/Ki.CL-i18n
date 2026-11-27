@@ -148,6 +148,12 @@ export async function findAcceptLanguageStatuses(): Promise<AcceptLanguageStatus
   return statuses;
 }
 
+/** Every language the site is translated into, complete or not. */
+export async function localeTags(): Promise<string[]> {
+  await current();
+  return statuses.map(({ acceptLanguage }) => acceptLanguage);
+}
+
 /** The languages a request may be answered in: each complete one, and always `en-US`. */
 export async function availableAcceptLanguages(): Promise<string[]> {
   await current();
