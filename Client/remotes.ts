@@ -11,8 +11,11 @@ type Env = Record<string, string | undefined>;
 /** Checked by Ki.CL's proxy. Without it the deployment asks for a password. */
 const TOKEN_HEADER = 'x-kicl-client-token';
 
+/** The dev deployment: the default host, and where files kept in the buckets come from, so a page runs locally without Google Cloud credentials. */
+const DEV_URL = 'https://dev.ki-cl.com';
+
 const getTargets = (env: Env) => {
-  const host = env.KICL_HOST_URL || 'https://dev.ki-cl.com';
+  const host = env.KICL_HOST_URL || DEV_URL;
 
   return {
     api: env.KICL_BACKEND_URL || host,
@@ -54,6 +57,8 @@ const getProxy = (env: Env): Record<string, ProxyOptions> => {
     '/api': route(api, { ws: true }),
     // The design system's dev server reloads over a socket; an unproxied one hangs and holds up every other socket to this host.
     '/design': route(design, { ws: true }),
+    '/assets/': route(DEV_URL),
+    '^/experiments/[^/]+/files/': route(DEV_URL),
   };
 };
 
